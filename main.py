@@ -107,6 +107,28 @@ def format_color(cell, fg=None, bg=None):
         return cell
 
 
+class Pixel:
+    def __init__(self, char, x, y, fg):
+        self.char = char
+        self.loc = Position(x, y)
+        self.fg = fg
+
+    def __str__(self):
+        return f"{format_color(self.char, fg=self.fg)}"
+
+    @classmethod
+    def fromHeadFood(cls, head, food):
+        return cls("#", head.loc.x, head.loc.y, food.fg)
+
+    @property
+    def x(self):
+        return self.loc.x
+
+    @property
+    def y(self):
+        return self.loc.y
+
+
 class Position:
     def __init__(self, x, y):
         self.x = x
@@ -129,28 +151,26 @@ class Direction:
 class Food:
     def __init__(self):
         self.spawn()
-        self.color = fg(0, 255, 0)
-        self.char = chr(9618)
 
     def spawn(self):
-        self.loc = Position(randint(0, WIDTH + 1), randint(0, HEIGHT + 1))
+        self.pixel = Pixel(
+            "0",
+            randint(0, WIDTH),
+            randint(0, HEIGHT),
+            fg(randint(0, 255), randint(0, 255), randint(0, 255)),
+        )
 
     def draw(self):
-        stdout.write(
-            f"\x1b[{self.loc.y};{self.loc.x}H{format_color(self.char, fg=self.color)}"
-        )
+        stdout.write(f"\x1b[{self.pixel.y};{self.pixel.x}H{self.pixel}")
 
 
 class Snake:
     def __init__(self):
-        self.head = Position(randint(0, WIDTH), randint(0, HEIGHT))
+        self.head = Pixel("@", randint(0, WIDTH), randint(0, HEIGHT), fg(255, 0, 0))
+        # Position(randint(0, WIDTH), randint(0, HEIGHT))
         self.direction = Direction.RIGHT
-        self.length = 5
+        self.length = 0
         self.body = []
-        self.head_color = fg(255, 0, 0)
-        self.body_color = fg(150, 50, 0)
-        self.head_char = chr(9608)
-        self.body_char = chr(9617)
 
     def change_direction(self, key):
         if key == Keys.ARROW_LEFT:
@@ -163,7 +183,7 @@ class Snake:
             self.direction = Direction.DOWN
 
     def eat_food(self, food):
-        if food.loc == self.head:
+        if food.pixel.loc == self.head.loc:
             food.spawn()
             self.length += 1
             return True
@@ -172,33 +192,30 @@ class Snake:
 
     def eat_self(self):
         for part in self.body:
-            if part == self.head:
+            if part == self.head.loc:
                 return True
         else:
             return False
 
-    def update(self):
-        if self.head.x < 0:
-            self.head = Position(WIDTH, self.head.y)
-        elif self.head.x > WIDTH:
-            self.head = Position(0, self.head.y)
-        elif self.head.y < 0:
-            self.head = Position(self.head.x, HEIGHT)
-        elif self.head.y > HEIGHT:
-            self.head = Position(self.head.x, 0)
-        self.body.append(self.head)
+    def update(self, food):
+        if self.head.loc.x < 0:
+            self.head.loc = Position(WIDTH, self.head.loc.y)
+        elif self.head.loc.x > WIDTH:
+            self.head.loc = Position(0, self.head.loc.y)
+        elif self.head.loc.y < 0:
+            self.head.loc = Position(self.head.loc.x, HEIGHT)
+        elif self.head.loc.y > HEIGHT:
+            self.head.loc = Position(self.head.loc.x, 0)
+        color = food.pixel
         if self.length < len(self.body):
-            self.body.pop(0)
-        self.head += self.direction
+            color = self.body.pop()
+        self.body.insert(0, Pixel.fromHeadFood(self.head, color))
+        self.head.loc += self.direction
 
     def draw(self):
-        stdout.write(
-            f"\x1b[{self.head.y};{self.head.x}H{format_color(self.head_char, fg=self.head_color)}"
-        )
+        stdout.write(f"\x1b[{self.head.y};{self.head.x}H{self.head}")
         for part in self.body:
-            stdout.write(
-                f"\x1b[{part.y};{part.x}H{format_color(self.body_char, fg=self.body_color)}"
-            )
+            stdout.write(f"\x1b[{part.y};{part.x}H{part}")
 
 
 class Game:
@@ -208,7 +225,7 @@ class Game:
         self.tick_rate = 0.3
 
     def update(self):
-        self.snake.update()
+        self.snake.update(self.food)
         if self.snake.eat_food(self.food):
             self.tick_rate -= 0.001
         if self.snake.eat_self():
@@ -237,7 +254,7 @@ class Game:
 
         finally:
             show()
-            clear()
+            # clear()
 
 
 def main():
