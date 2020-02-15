@@ -88,6 +88,25 @@ def clear():
     system("cls" if name == "nt" else "clear")
 
 
+def fg(r, g, b):
+    return f"\x1b[38;2;{r};{g};{b}m"
+
+
+def bg(r, g, b):
+    return f"\x1b[48;2;{r};{g};{b}m"
+
+
+def format_color(cell, fg=None, bg=None):
+    if fg is not None and bg is not None:
+        return f"{fg}{bg}{cell}\x1b[0m"
+    elif fg is not None:
+        return f"{fg}{cell}\x1b[0m"
+    elif bg is not None:
+        return f"{bg}{cell}\x1b[0m"
+    else:
+        return cell
+
+
 class Position:
     def __init__(self, x, y):
         self.x = x
@@ -110,12 +129,16 @@ class Direction:
 class Food:
     def __init__(self):
         self.spawn()
+        self.color = fg(0, 255, 0)
+        self.char = chr(9618)
 
     def spawn(self):
         self.loc = Position(randint(0, WIDTH + 1), randint(0, HEIGHT + 1))
 
     def draw(self):
-        stdout.write(f"\x1b[{self.loc.y};{self.loc.x}H{chr(9618)}")
+        stdout.write(
+            f"\x1b[{self.loc.y};{self.loc.x}H{format_color(self.char, fg=self.color)}"
+        )
 
 
 class Snake:
@@ -124,6 +147,10 @@ class Snake:
         self.direction = Direction.RIGHT
         self.length = 5
         self.body = []
+        self.head_color = fg(255, 0, 0)
+        self.body_color = fg(150, 50, 0)
+        self.head_char = chr(9608)
+        self.body_char = chr(9617)
 
     def change_direction(self, key):
         if key == Keys.ARROW_LEFT:
@@ -165,9 +192,13 @@ class Snake:
         self.head += self.direction
 
     def draw(self):
-        stdout.write(f"\x1b[{self.head.y};{self.head.x}H{chr(9608)}")
+        stdout.write(
+            f"\x1b[{self.head.y};{self.head.x}H{format_color(self.head_char, fg=self.head_color)}"
+        )
         for part in self.body:
-            stdout.write(f"\x1b[{part.y};{part.x}H{chr(9617)}")
+            stdout.write(
+                f"\x1b[{part.y};{part.x}H{format_color(self.body_char, fg=self.body_color)}"
+            )
 
 
 class Game:
